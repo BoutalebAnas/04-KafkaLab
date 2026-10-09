@@ -1,12 +1,9 @@
 # %%
 import socket
-import time
 from confluent_kafka import Producer
-from datetime import datetime, timedelta
+import zipfile
+from xml.etree import ElementTree
 
-
-# %%
-print(datetime.now().strftime("%H:%M"))
 # %%
 conf = {'bootstrap.servers': 'localhost:9092',
         'client.id': socket.gethostname()}
@@ -14,21 +11,23 @@ conf = {'bootstrap.servers': 'localhost:9092',
 producer = Producer(conf)
 
 # %%
-topic='timer'
-message='The time is now '
+topic='book_gutenberg'
+book_file='pg79744-images-3.epub'
 # %% Streaming Query
-duration = 5 # Streaming window in minutes
-start_time = datetime.now() # Current clock time
-stop_time = start_time + timedelta(minutes=duration) #start+duration=stop
 
-while datetime.now() < stop_time:
-  time_now = datetime.now().strftime("%H:%M:%S")
-  producer.produce(
-    topic=topic,
-    value=message + time_now
-  )
-  print(message + time_now)
-  time.sleep(1)
+with zipfile.ZipFile(book_file, 'r') as book:
+    for filename in book.namelist():
+        if filename.endswith(('.xhtml', '.html', '.htm')):
+            with book.open(filename) as file:
+                tree = ElementTree.parse(file)
+                content = ' '.join(tree.getroot().itertext())
+
+                for line in content.splitlines():
+                    line = line.strip()
+                    if line:
+                        producer.produce(topic=topic, value=line)
+                        print(line)
+                        producer.poll(0)
 
 producer.flush()
-producer.close()
+print("Envoi du livre terminé")
