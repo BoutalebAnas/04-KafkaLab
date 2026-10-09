@@ -9,7 +9,7 @@ config =  {
 admin_client = AdminClient(config)
 
 # %%
-topic='timer'
+topic='book_gutenberg'
 admin_client.create_topics(
   [NewTopic(topic, num_partitions=1, replication_factor=1)]
 )
